@@ -3,63 +3,77 @@ import "./ClientStyling.css";
 import { Client } from "@stomp/stompjs";
 import * as SockJS from "sockjs-client";
 export const ClientBody = () => {
-  const [data, setData] = useState({
-    authUrl:"",
+  let [data, setData] = useState({
+    authUrl: "",
     stompUrl: "",
+    destination: "",
     subscribe: "",
     headers: [],
   });
 
-  const [messageData, setMessageData] = useState({
+  let [messageData, setMessageData] = useState({
     message: "",
   });
 
+  let [incomingMessageData, setIncomingMessageData] = useState({
+    message: [],
+  });
   const inputHandler = (e) => {
     const name = e.target.name;
     const value = e.target.value;
     setData({ ...data, [name]: value });
-    console.log(value)
+    console.log(name);
   };
 
   const messageDataHandler = (e) => {
     const name = e.target.name;
     const value = e.target.value;
     setMessageData({ ...messageData, [name]: value });
-    console.log(name);
   };
 
-  const sendMessage = () => {
-    console.log(messageData.subscribe);
-    stomp.publish({
-      destination: data.subscribe,
-      body: messageData.message,
-      headers: "Content-Type:application/json",
-    });
-  };
-
-  const stomp = new Client({
+  let stomp = new Client({
     webSocketFactory: () => {
       return new SockJS(data.stompUrl);
     },
-    debug: function (str) {
-      console.log(str);
-    },
   });
-
-  const Disconnect = () => {
-    stomp.deactivate();
-  };
 
   const connectToStompServer = () => {
     fetch(data.authUrl, {
       method: "POST",
       headers: new Headers({
-        "Access-Control-Allow-Origin":"http://localhost:3000/",
-        "Authorization": "Basic dGVzdDp0ZXN0"
+        "Access-Control-Allow-Origin": "http://localhost:3000",
+        Authorization: data.headers,
       }),
     });
+
     stomp.activate();
   };
+
+  const Disconnect = () => {
+    stomp.deactivate();
+  };
+
+  const sendMessage = () => {
+    stomp.publish({
+      destination: data.destination.toString(),
+      body: messageData.message.toString(),
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const getMessage = (message) => {
+    if (message.body) {
+      console.log("message exits");
+      setIncomingMessageData({ ...incomingMessageData, message: message.body });
+    } else {
+      console.log("no message");
+    }
+  };
+
+  const subcribe = () => {
+    stomp.subscribe(data.subscribe, getMessage);
+  };
+
   return (
     <div className="container">
       <form>
@@ -73,8 +87,8 @@ export const ClientBody = () => {
           />
         </div>
         <div>
-        <label>authUrl:</label>
-        <input
+          <label>authUrl:</label>
+          <input
             onChange={inputHandler}
             type={"text"}
             name={"authUrl"}
@@ -88,6 +102,15 @@ export const ClientBody = () => {
             type={"text"}
             name={"subscribe"}
             value={data.subscribe}
+          />
+        </div>
+        <div>
+          <label>Destination:</label>
+          <input
+            onChange={inputHandler}
+            type={"text"}
+            name={"destination"}
+            value={data.destination}
           />
         </div>
         <div>
@@ -117,6 +140,19 @@ export const ClientBody = () => {
       </div>
       <div>
         <input type={"button"} onClick={sendMessage} value="send message" />
+      </div>
+      <div>
+        <label> incoming message</label>
+      </div>
+      <div>
+        <textarea
+          readOnly={true}
+          name={" incoming-message"}
+          value={incomingMessageData.message}
+        ></textarea>
+      </div>
+      <div>
+        <input type={"button"} onClick={subcribe} value="subcribe" />
       </div>
     </div>
   );
